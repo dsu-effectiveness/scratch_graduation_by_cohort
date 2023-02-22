@@ -1,0 +1,49 @@
+---
+title: "graduation_by_cohort"
+author: "Joy Baule"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r set global chunks, include=FALSE}
+knitr::opts_chunk$set(
+  warning = FALSE, 
+  message = FALSE
+)
+```
+
+```{r}
+library(tidyverse)
+library(utHelpR)
+library(here)
+library(scales)
+```
+
+<!-- Don't display this chunk -->
+```{r load data, echo = FALSE}
+cohort_graduation <- get_data_from_sql_file('is_graduated_by_cohort.sql', 'edify')
+```
+
+Cohort graduation rate
+```{r}
+cohort_grads <- cohort_graduation %>% 
+  filter(cohort_start_term_id == '201840') %>% 
+  select(student_id,
+         is_exclusion,
+         cohort_start_term_id,
+         is_graduated_year_1,
+         is_graduated_year_2,
+         is_graduated_year_3,
+         is_graduated_year_4) %>% 
+  filter(is_exclusion == FALSE) %>% # Take out the exclusion students from the entire calculation
+  select(-is_exclusion) %>% 
+  mutate(positive_outcome = is_graduated_year_4) %>% 
+  select(-is_graduated_year_4, -student_id) %>% 
+  mutate(positive_outcome = if_else(positive_outcome, 'positive', 'negative')) %>% 
+  group_by(cohort_start_term_id, positive_outcome) %>% 
+  summarise(count = n()) %>% 
+  pivot_wider(names_from = positive_outcome, values_from = count) %>% 
+  mutate(total = positive + negative) %>% 
+  mutate(cohort_graduation_rate = percent(positive/total))
+
+```
